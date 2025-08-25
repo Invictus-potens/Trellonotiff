@@ -31,6 +31,22 @@ if (missingVars.length > 0) {
 
 // Arquivo para armazenar o estado anterior das cartas
 const STATE_FILE = 'trello-state.json';
+const INIT_FLAG_FILE = 'trello-initialized.flag';
+
+// Função para verificar se é a primeira execução
+function isFirstRun() {
+  return !fs.existsSync(INIT_FLAG_FILE);
+}
+
+// Função para marcar que a inicialização foi feita
+function markAsInitialized() {
+  try {
+    fs.writeFileSync(INIT_FLAG_FILE, new Date().toISOString());
+    console.log('✅ Sistema inicializado com sucesso');
+  } catch (error) {
+    console.error('Erro ao marcar inicialização:', error.message);
+  }
+}
 
 // Função para carregar o estado anterior
 function loadPreviousState() {
@@ -190,7 +206,13 @@ function detectColumnChanges(previousState, currentCards) {
 
 // Função principal de monitoramento
 async function monitorTrello() {
-  console.log('🚀 Iniciando monitoramento do Trello...');
+  const firstRun = isFirstRun();
+  
+  if (firstRun) {
+    console.log('🎯 PRIMEIRA EXECUÇÃO - Coletando estado inicial...');
+  } else {
+    console.log('🚀 Iniciando monitoramento do Trello...');
+  }
   
   // Carregar estado anterior
   const previousState = loadPreviousState();
@@ -216,32 +238,67 @@ async function monitorTrello() {
     card.listName = listNames[card.idList] || 'Unknown';
   });
 
-  // Detectar mudanças
-  const changes = detectColumnChanges(previousState, currentCards);
-  
-  // Enviar notificações para cada mudança
-  if (changes.length > 0) {
-    console.log(`\n📱 Enviando ${changes.length} notificação(ões)...`);
+  if (firstRun) {
+    // PRIMEIRA EXECUÇÃO: Apenas salvar estado inicial
+    console.log('📝 Salvando estado inicial das cartas...');
+    saveCurrentState(currentCards);
+    markAsInitialized();
     
-    for (const change of changes) {
-      await sendNotification(change.message);
-      // Aguardar 2 segundos entre notificações para evitar spam
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
+    console.log(`✅ Estado inicial salvo com ${currentCards.length} cartas`);
+    console.log('🔔 A partir da próxima verificação, notificações serão enviadas para mudanças');
     
-    console.log('✅ Todas as notificações foram enviadas!');
+    // Mostrar resumo das cartas coletadas
+    console.log('\n📋 Cartas coletadas no estado inicial:');
+    const listSummary = {};
+    currentCards.forEach(card => {
+      if (!listSummary[card.listName]) {
+        listSummary[card.listName] = 0;
+      }
+      listSummary[card.listName]++;
+    });
+    
+    Object.entries(listSummary).forEach(([listName, count]) => {
+      console.log(`  📌 ${listName}: ${count} cartas`);
+    });
+    
   } else {
-    console.log('✅ Nenhuma mudança detectada');
-  }
+    // EXECUÇÕES SEGUINTES: Detectar mudanças e notificar
+    const changes = detectColumnChanges(previousState, currentCards);
+    
+    // Enviar notificações para cada mudança
+    if (changes.length > 0) {
+      console.log(`\n📱 Enviando ${changes.length} notificação(ões)...`);
+      
+      for (const change of changes) {
+        await sendNotification(change.message);
+        // Aguardar 2 segundos entre notificações para evitar spam
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      console.log('✅ Todas as notificações foram enviadas!');
+    } else {
+      console.log('✅ Nenhuma mudança detectada');
+    }
 
-  // Salvar estado atual
-  saveCurrentState(currentCards);
-  
-  // Mostrar resumo das cartas atuais
-  console.log('\n📋 Resumo das cartas atuais:');
-  currentCards.forEach((card, index) => {
-    console.log(`${index + 1}. ${card.name} - Lista: ${card.listName}`);
-  });
+    // Salvar estado atual
+    saveCurrentState(currentCards);
+    
+    // Mostrar resumo das cartas atuais (apenas se houver mudanças ou a cada 10 verificações)
+    if (changes.length > 0) {
+      console.log('\n📋 Resumo após mudanças:');
+      const listSummary = {};
+      currentCards.forEach(card => {
+        if (!listSummary[card.listName]) {
+          listSummary[card.listName] = 0;
+        }
+        listSummary[card.listName]++;
+      });
+      
+      Object.entries(listSummary).forEach(([listName, count]) => {
+        console.log(`  📌 ${listName}: ${count} cartas`);
+      });
+    }
+  }
 
   // Agendar próxima verificação (a cada 30 segundos)
   console.log('\n⏰ Próxima verificação em 30 segundos...');
@@ -263,8 +320,19 @@ const server = http.createServer((req, res) => {
 
 // Função para iniciar o monitoramento
 function startMonitoring() {
+  const firstRun = isFirstRun();
+  
   console.log('🎯 Monitor de Trello iniciado!');
-  console.log(`📱 Notificações serão enviadas para: ${PHONE_NUMBER}`);
+  
+  if (firstRun) {
+    console.log('🆕 PRIMEIRA EXECUÇÃO DETECTADA');
+    console.log('📝 Coletando estado inicial das cartas (sem notificações)');
+    console.log('🔔 Notificações começarão a partir da segunda verificação');
+  } else {
+    console.log(`📱 Notificações serão enviadas para: ${PHONE_NUMBER}`);
+    console.log('🔔 Sistema já inicializado - monitorando mudanças');
+  }
+  
   console.log(`🔍 Verificando mudanças a cada 30 segundos...`);
   console.log(`🌐 Servidor HTTP rodando na porta ${PORT}`);
   console.log('Pressione Ctrl+C para parar o monitoramento\n');

@@ -85,5 +85,6 @@ typings/
 # TernJS port file
 .tern-port
 
-# Trello state file
+# Trello state files
 trello-state.json
+trello-initialized.flag
