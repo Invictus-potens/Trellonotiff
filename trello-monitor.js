@@ -250,3 +250,4 @@ process.on('SIGINT', () => {
 // Iniciar monitoramento
 startMonitoring();
 
+
