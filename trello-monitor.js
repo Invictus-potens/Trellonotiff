@@ -2,15 +2,32 @@
 const fetch = require('node-fetch');
 const fs = require('fs');
 
+// Carregar variáveis de ambiente
+require('dotenv').config();
+
 // Configurações do Trello
-const TRELLO_API_KEY = 'b786c286d7f14c6d5e579c7c45cf9c6e';
-const TRELLO_API_TOKEN = 'ATTAa0629caf7479fd75c09cd44607083224239cd0e493a3cd1575645ca0c6ff586c76141A59';
-const BOARD_ID = '6787ed8fed32ebf7d5981026';
+const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
+const TRELLO_API_TOKEN = process.env.TRELLO_API_TOKEN;
+const BOARD_ID = process.env.BOARD_ID;
 
 // Configurações da API de notificação
-const API_URL = 'https://api-krolik.telezapy.tech';
-const API_KEY = 'de58e90c195fd9a9fb7106e8dc388dbe60cb82fb50eabe38dcdac635eeb7f1df2c265f0d8cd718b37b44eb5c3eb87f7718210663e2fa88e842a25fc0c4dd628092eb6e367765be1b8b637f80ba20e76a7571346b3743093da905850847386d99b1d1f324c5d5ca3023734b084f6b460447098449c1b2e6bd873aa3c026';
-const PHONE_NUMBER = '120363402487856465';
+const API_URL = process.env.API_URL || 'https://api-krolik.telezapy.tech';
+const API_KEY = process.env.API_KEY;
+const PHONE_NUMBER = process.env.PHONE_NUMBER;
+
+// Configurações do ambiente
+const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Validar variáveis de ambiente obrigatórias
+const requiredEnvVars = ['TRELLO_API_KEY', 'TRELLO_API_TOKEN', 'BOARD_ID', 'API_KEY', 'PHONE_NUMBER'];
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error('❌ Variáveis de ambiente obrigatórias não encontradas:', missingVars.join(', '));
+  console.error('📝 Configure essas variáveis no Railway ou crie um arquivo .env');
+  process.exit(1);
+}
 
 // Arquivo para armazenar o estado anterior das cartas
 const STATE_FILE = 'trello-state.json';
@@ -231,12 +248,31 @@ async function monitorTrello() {
   setTimeout(monitorTrello, 30000);
 }
 
+// Servidor HTTP simples para Railway (health check)
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', service: 'trello-monitor' }));
+  } else {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Trello Monitor está rodando!');
+  }
+});
+
 // Função para iniciar o monitoramento
 function startMonitoring() {
   console.log('🎯 Monitor de Trello iniciado!');
   console.log(`📱 Notificações serão enviadas para: ${PHONE_NUMBER}`);
   console.log(`🔍 Verificando mudanças a cada 30 segundos...`);
+  console.log(`🌐 Servidor HTTP rodando na porta ${PORT}`);
   console.log('Pressione Ctrl+C para parar o monitoramento\n');
+  
+  // Iniciar servidor HTTP
+  server.listen(PORT, () => {
+    console.log(`✅ Servidor HTTP iniciado na porta ${PORT}`);
+  });
   
   monitorTrello();
 }
@@ -244,7 +280,18 @@ function startMonitoring() {
 // Tratamento de saída graciosa
 process.on('SIGINT', () => {
   console.log('\n\n🛑 Monitoramento interrompido pelo usuário');
-  process.exit(0);
+  server.close(() => {
+    console.log('🛑 Servidor HTTP fechado');
+    process.exit(0);
+  });
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n\n🛑 Recebido SIGTERM, encerrando graciosamente...');
+  server.close(() => {
+    console.log('🛑 Servidor HTTP fechado');
+    process.exit(0);
+  });
 });
 
 // Iniciar monitoramento
