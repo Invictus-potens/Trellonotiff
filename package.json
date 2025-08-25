@@ -1,0 +1,22 @@
+{
+  "name": "trello-monitor",
+  "version": "1.0.0",
+  "description": "Monitor de cartas do Trello com notificações automáticas",
+  "main": "trello-monitor.js",
+  "scripts": {
+    "start": "node trello-monitor.js",
+    "monitor": "node trello-monitor.js",
+    "test": "node trello-request.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "keywords": [
+    "trello",
+    "monitor",
+    "webhook",
+    "notification"
+  ],
+  "author": "Trello Monitor",
+  "license": "MIT"
+}

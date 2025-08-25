@@ -1,0 +1,67 @@
+{
+    "name": "WhatsApp Notification Node",
+    "nodes": [
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api-krolik.telezapy.tech/api/send/5519995068303",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Accept",
+                "value": "application/json"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer de58e90c195fd9a9fb7106e8dc388dbe60cb82fb50eabe38dcdac635eeb7f1df2c265f0d8cd718b37b44eb5c3eb87f7718210663e2fa88e842a25fc0c4dd628092eb6e367765be1b8b637f80ba20e76a7571346b3743093da905850847386d99b1d1f324c5d5ca3023734b084f6b460447098449c1b2e6bd873aa3c026"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "body",
+                "value": "={{ $json.message || 'Teste de notificação WhatsApp' }}"
+              },
+              {
+                "name": "connectionFrom",
+                "value": "6"
+              },
+              {
+                "name": "ticketStrategy",
+                "value": "create"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "whatsapp-notification-node",
+        "name": "Send WhatsApp Notification",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          400,
+          200
+        ]
+      }
+    ],
+    "pinData": {},
+    "connections": {},
+    "active": false,
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "versionId": "1",
+    "meta": {
+      "templateCredsSetupCompleted": false,
+      "instanceId": "single-node-import"
+    },
+    "id": "whatsapp-node-import",
+    "tags": []
+  }

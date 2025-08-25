@@ -1,0 +1,367 @@
+{
+  "name": "Trello Board Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.trello.com/1/boards/68a088b9c290c367acfe1537/cards",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "865439e87d76f97e92f97580d4dfd557"
+            },
+            {
+              "name": "token",
+              "value": "ATTA7f855871387cc83f2512e7768eb04d2fc5e53c3d36b5efbcc6c7862a167b8333A6A1C52B"
+            },
+            {
+              "name": "fields",
+              "value": "id,name,idList"
+            },
+            {
+              "name": "list",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-f6g7-8901-2345-678901bcdefg",
+      "name": "Get Trello Cards",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.trello.com/1/boards/68a088b9c290c367acfe1537/lists",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "865439e87d76f97e92f97580d4dfd557"
+            },
+            {
+              "name": "token",
+              "value": "ATTA7f855871387cc83f2512e7768eb04d2fc5e53c3d36b5efbcc6c7862a167b8333A6A1C52B"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-g7h8-9012-3456-789012cdefgh",
+      "name": "Get Trello Lists",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Função para carregar estado anterior do workflow data\nfunction loadPreviousState() {\n  try {\n    const workflowData = $('Schedule Trigger').item.json.workflowData || {};\n    return workflowData.previousState || {};\n  } catch (error) {\n    console.log('Erro ao carregar estado anterior:', error.message);\n    return {};\n  }\n}\n\n// Função para detectar mudanças\nfunction detectColumnChanges(previousState, currentCards, listNames) {\n  const changes = [];\n  \n  currentCards.forEach(card => {\n    const previousCard = previousState[card.id];\n    const cardListName = listNames[card.idList] || 'Unknown';\n    \n    if (previousCard) {\n      // Verificar se a carta mudou de lista\n      if (previousCard.idList !== card.idList) {\n        const change = {\n          cardId: card.id,\n          cardName: card.name,\n          fromList: previousCard.listName,\n          toList: cardListName,\n          message: `🔄 Carta \"${card.name}\" movida de \"${previousCard.listName}\" para \"${cardListName}\"`\n        };\n        changes.push(change);\n      }\n    } else {\n      // Nova carta\n      const change = {\n        cardId: card.id,\n        cardName: card.name,\n        toList: cardListName,\n        message: `🆕 Nova carta \"${card.name}\" criada na lista \"${cardListName}\"`\n      };\n      changes.push(change);\n    }\n  });\n\n  // Verificar cartas removidas\n  Object.keys(previousState).forEach(cardId => {\n    const cardExists = currentCards.find(card => card.id === cardId);\n    if (!cardExists) {\n      const removedCard = previousState[cardId];\n      const change = {\n        cardId: cardId,\n        cardName: removedCard.name,\n        fromList: removedCard.listName,\n        message: `🗑️ Carta \"${removedCard.name}\" foi removida da lista \"${removedCard.listName}\"`\n      };\n      changes.push(change);\n    }\n  });\n\n  return changes;\n}\n\n// Processar dados\nconst cards = $('Get Trello Cards').all();\nconst lists = $('Get Trello Lists').all();\n\n// Criar mapeamento de listas\nconst listNames = {};\nlists.forEach(list => {\n  listNames[list.json.id] = list.json.name;\n});\n\n// Carregar estado anterior\nconst previousState = loadPreviousState();\n\n// Preparar cartas atuais\nconst currentCards = cards.map(item => ({\n  id: item.json.id,\n  name: item.json.name,\n  idList: item.json.idList,\n  listName: listNames[item.json.idList] || 'Unknown'\n}));\n\n// Detectar mudanças\nconst changes = detectColumnChanges(previousState, currentCards, listNames);\n\n// Criar novo estado\nconst newState = {};\ncurrentCards.forEach(card => {\n  newState[card.id] = {\n    id: card.id,\n    name: card.name,\n    idList: card.idList,\n    listName: card.listName\n  };\n});\n\n// Retornar resultado\nreturn {\n  changes: changes,\n  currentState: newState,\n  hasChanges: changes.length > 0,\n  cardsCount: currentCards.length,\n  summary: {\n    cards: currentCards,\n    lists: listNames\n  }\n};"
+      },
+      "id": "d4e5f6g7-h8i9-0123-4567-890123defghi",
+      "name": "Process Changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasChanges }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "e5f6g7h8-i9j0-1234-5678-901234efghij",
+      "name": "IF Changes Detected",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assignment1",
+              "name": "changes",
+              "value": "={{ $json.changes }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f6g7h8i9-j0k1-2345-6789-012345fghijk",
+      "name": "Extract Changes",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "changes",
+        "options": {}
+      },
+      "id": "g7h8i9j0-k1l2-3456-7890-123456ghijkl",
+      "name": "Split Changes",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        1560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-krolik.telezapy.tech/api/send/5519995068303",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"body\": $json.message,\n  \"connectionFrom\": 6,\n  \"ticketStrategy\": \"create\"\n} }}",
+        "options": {}
+      },
+      "id": "h8i9j0k1-l2m3-4567-8901-234567hijklm",
+      "name": "Send WhatsApp Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1780,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "whatsapp-api-key",
+          "name": "WhatsApp API Authorization"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assignment1",
+              "name": "workflowData",
+              "value": "={{ { \"previousState\": $('Process Changes').item.json.currentState, \"lastRun\": new Date().toISOString() } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "i9j0k1l2-m3n4-5678-9012-345678ijklmn",
+      "name": "Save State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        1340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log das mudanças detectadas\nconst processData = $('Process Changes').item.json;\n\nconsole.log('🚀 Monitor Trello - Verificação executada');\nconsole.log(`📊 Total de cartas: ${processData.cardsCount}`);\n\nif (processData.hasChanges) {\n  console.log(`🔄 ${processData.changes.length} mudança(s) detectada(s):`);\n  processData.changes.forEach((change, index) => {\n    console.log(`${index + 1}. ${change.message}`);\n  });\n} else {\n  console.log('✅ Nenhuma mudança detectada');\n}\n\nconsole.log('\\n📋 Resumo das cartas atuais:');\nprocessData.summary.cards.forEach((card, index) => {\n  console.log(`${index + 1}. ${card.name} - Lista: ${card.listName}`);\n});\n\nreturn {\n  message: `Verificação executada - ${processData.changes.length} mudanças detectadas`,\n  timestamp: new Date().toISOString(),\n  changes: processData.changes.length,\n  totalCards: processData.cardsCount\n};"
+      },
+      "id": "j0k1l2m3-n4o5-6789-0123-456789jklmno",
+      "name": "Log Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "k1l2m3n4-o5p6-7890-1234-567890klmnop",
+      "name": "Wait Between Notifications",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        200
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Trello Cards",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Trello Cards": {
+      "main": [
+        [
+          {
+            "node": "Get Trello Lists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Trello Lists": {
+      "main": [
+        [
+          {
+            "node": "Process Changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Changes": {
+      "main": [
+        [
+          {
+            "node": "IF Changes Detected",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Changes Detected": {
+      "main": [
+        [
+          {
+            "node": "Extract Changes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Extract Changes": {
+      "main": [
+        [
+          {
+            "node": "Split Changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Changes": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Notification": {
+      "main": [
+        [
+          {
+            "node": "Wait Between Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save State": {
+      "main": [
+        [
+          {
+            "node": "Log Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "your-instance-id"
+  },
+  "id": "trello-monitor-workflow",
+  "tags": []
+}
